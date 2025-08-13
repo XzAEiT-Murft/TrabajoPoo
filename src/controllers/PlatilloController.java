@@ -1,19 +1,35 @@
 package controllers;
 
 import jakarta.persistence.*;
-import models.Hospital;
+import models.Platillo;
 import utils.JPAUtil;
 
 import java.util.List;
 
-public class HospitalController {
+public class PlatilloController {
 
-    public void crearHospital(Hospital hospital) {
+    public void crearPlatillo(Platillo platillo) {
         EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
         EntityTransaction tx = em.getTransaction();
         try {
             tx.begin();
-            em.persist(hospital);
+            em.persist(platillo);
+            tx.commit();
+            System.out.println("Platillo guardado correctamente.");
+        } catch (Exception e) {
+            if (tx.isActive()) tx.rollback();
+            e.printStackTrace();
+        } finally {
+            em.close();
+        }
+    }
+
+    public void actualizarPlatillo(Platillo platillo) {
+        EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
+        EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+            em.merge(platillo);
             tx.commit();
         } catch (Exception e) {
             if (tx.isActive()) tx.rollback();
@@ -23,29 +39,14 @@ public class HospitalController {
         }
     }
 
-    public void actualizarHospital(Hospital hospital) {
+    public boolean eliminarPlatillos(List<Platillo> lista) {
         EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
         EntityTransaction tx = em.getTransaction();
         try {
             tx.begin();
-            em.merge(hospital);
-            tx.commit();
-        } catch (Exception e) {
-            if (tx.isActive()) tx.rollback();
-            e.printStackTrace();
-        } finally {
-            em.close();
-        }
-    }
-
-    public boolean eliminarHospitales(List<Hospital> lista) {
-        EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
-        EntityTransaction tx = em.getTransaction();
-        try {
-            tx.begin();
-            for (Hospital h : lista) {
-                h = em.find(Hospital.class, h.getId());
-                if (h != null) em.remove(h);
+            for (Platillo p : lista) {
+                p = em.find(Platillo.class, p.getId());
+                if (p != null) em.remove(p);
             }
             tx.commit();
             return true;
@@ -58,26 +59,21 @@ public class HospitalController {
         }
     }
 
-    public List<Hospital> obtenerHospitalesActivos() {
+    public List<Platillo> obtenerTodos() {
         EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
-        List<Hospital> lista = em.createQuery("SELECT h FROM Hospital h WHERE h.activo = true", Hospital.class).getResultList();
-        em.close();
-        return lista;
-    }
-
-    // HospitalController.java
-    public List<Hospital> obtenerTodos() {
-        EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
-        List<Hospital> lista = em.createQuery("SELECT h FROM Hospital h", Hospital.class).getResultList();
-        em.close();
-        return lista;
+        try {
+            TypedQuery<Platillo> query = em.createQuery("SELECT p FROM Platillo p", Platillo.class);
+            return query.getResultList();
+        } finally {
+            em.close();
+        }
     }
 
     public boolean existePorNombre(String nombre) {
         EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
         try {
             Long count = em.createQuery(
-                    "SELECT COUNT(h) FROM Hospital h WHERE LOWER(h.nombre) = :nom",
+                    "SELECT COUNT(p) FROM Platillo p WHERE LOWER(p.nombre) = :nom",
                     Long.class)
                 .setParameter("nom", nombre.toLowerCase())
                 .getSingleResult();
