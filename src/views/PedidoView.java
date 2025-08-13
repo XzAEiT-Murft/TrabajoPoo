@@ -31,6 +31,7 @@ public class PedidoView {
     private void show(Stage owner) {
         BorderPane root = new BorderPane();
         root.setPadding(new Insets(10));
+        Stage stage = new Stage();
 
         // ==========================
         // Tabla de Pedidos (encabezado)
@@ -56,33 +57,24 @@ public class PedidoView {
         ));
         colFecha.setPrefWidth(160);
 
-        // Usa Double exacto (nada de Number) y ReadOnlyObjectWrapper
-        TableColumn<Pedido, Double> colTotal = new TableColumn<>("Total");
-        colTotal.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(
-                cd.getValue() != null ? cd.getValue().getTotal() : 0.0
-        ));
-        colTotal.setPrefWidth(100);
-
-        tablaPedidos.getColumns().setAll(colId, colCliente, colFecha, colTotal);
+        tablaPedidos.getColumns().setAll(colId, colCliente, colFecha);
 
         // ==========================
-        // Tabla de Detalles (líneas)
+        // Tabla de Detalles
         // ==========================
         TableColumn<PedidoDetalle, String> colPlatillo = new TableColumn<>("Platillo");
         colPlatillo.setCellValueFactory(cd -> new SimpleStringProperty(
                 cd.getValue() != null && cd.getValue().getPlatillo() != null
                         ? cd.getValue().getPlatillo().getNombre() : ""
         ));
-        colPlatillo.setPrefWidth(250);
+        colPlatillo.setPrefWidth(220);
 
-        // tipa exacto: Integer
         TableColumn<PedidoDetalle, Integer> colCant = new TableColumn<>("Cantidad");
         colCant.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(
                 cd.getValue() != null ? cd.getValue().getCantidad() : 0
         ));
         colCant.setPrefWidth(90);
 
-        // tipa exacto: Double
         TableColumn<PedidoDetalle, Double> colPrecio = new TableColumn<>("Precio");
         colPrecio.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(
                 cd.getValue() != null && cd.getValue().getPlatillo() != null
@@ -102,7 +94,7 @@ public class PedidoView {
         // Datos
         // ==========================
         // Este método del controller DEBE usar JOIN FETCH (ya lo hicimos)
-        tablaPedidos.getItems().setAll(controller.obtenerTodos());
+        refrescarPedidos();
 
         // al seleccionar encabezado → mostrar líneas
         tablaPedidos.getSelectionModel().selectedItemProperty().addListener((obs, old, sel) -> {
@@ -119,18 +111,57 @@ public class PedidoView {
         SplitPane split = new SplitPane(tablaPedidos, tablaDetalles);
         split.setDividerPositions(0.55);
 
+        Button agregar = new Button("Agregar");
+        agregar.setOnAction(e -> new PedidoForm().mostrar(stage, null, this::refrescarPedidos));
+
+        Button editar = new Button("Editar");
+        editar.setOnAction(e -> {
+            Pedido sel = tablaPedidos.getSelectionModel().getSelectedItem();
+            if (sel == null) {
+                mostrarAlerta("Selecciona un pedido");
+                return;
+            }
+            new PedidoForm().mostrar(stage, sel, this::refrescarPedidos);
+        });
+
+        Button eliminar = new Button("Eliminar");
+        eliminar.setOnAction(e -> {
+            Pedido sel = tablaPedidos.getSelectionModel().getSelectedItem();
+            if (sel == null) {
+                mostrarAlerta("Selecciona un pedido");
+                return;
+            }
+            controller.eliminarPedidos(java.util.List.of(sel));
+            refrescarPedidos();
+        });
+
         Button cerrar = new Button("Cerrar");
         cerrar.setOnAction(e -> ((Stage) root.getScene().getWindow()).close());
-        HBox actions = new HBox(8, cerrar);
+        HBox actions = new HBox(8, agregar, editar, eliminar, cerrar);
         actions.setPadding(new Insets(10, 0, 0, 0));
 
         root.setCenter(split);
         root.setBottom(actions);
 
-        Stage stage = new Stage();
         stage.setTitle("Pedidos");
         stage.initOwner(owner);
         stage.setScene(new Scene(root, 820, 520));
         stage.show();
+    }
+
+    private void refrescarPedidos() {
+        tablaPedidos.getItems().setAll(controller.obtenerTodos());
+        tablaDetalles.getItems().clear();
+        if (!tablaPedidos.getItems().isEmpty()) {
+            tablaPedidos.getSelectionModel().selectFirst();
+        }
+    }
+
+    private void mostrarAlerta(String msg) {
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+        alert.setTitle("Información");
+        alert.setHeaderText(null);
+        alert.setContentText(msg);
+        alert.showAndWait();
     }
 }

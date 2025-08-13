@@ -32,6 +32,7 @@ public class ClienteView {
         txtCorreo.setPromptText("Correo");
 
         Button btnAgregar = new Button("Agregar");
+        Button btnModificar = new Button("Modificar");
         Button btnEliminar = new Button("Eliminar");
 
         TableView<Cliente> tabla = new TableView<>();
@@ -44,6 +45,13 @@ public class ClienteView {
         colCorreo.setCellValueFactory(new PropertyValueFactory<>("correo"));
 
         tabla.getColumns().addAll(colNombre, colCorreo);
+
+        tabla.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, sel) -> {
+            if (sel != null) {
+                txtNombre.setText(sel.getNombre());
+                txtCorreo.setText(sel.getCorreo());
+            }
+        });
 
         btnAgregar.setOnAction(e -> {
             Cliente c = new Cliente(txtNombre.getText().trim(), txtCorreo.getText().trim());
@@ -60,6 +68,33 @@ public class ClienteView {
             recargarClientesDesdeBD();
             txtNombre.clear();
             txtCorreo.clear();
+            tabla.getSelectionModel().clearSelection();
+        });
+
+        btnModificar.setOnAction(e -> {
+            Cliente seleccionado = tabla.getSelectionModel().getSelectedItem();
+            if (seleccionado == null) {
+                mostrarAlerta("Sin selección", "Selecciona un cliente.");
+                return;
+            }
+            String nuevoNombre = txtNombre.getText().trim();
+            String nuevoCorreo = txtCorreo.getText().trim();
+            Cliente c = new Cliente(nuevoNombre, nuevoCorreo);
+            c.setId(seleccionado.getId());
+            String error = ClienteValidator.validar(c);
+            if (!error.isEmpty()) {
+                mostrarAlerta("Validación", error);
+                return;
+            }
+            if (controller.existePorCorreo(c.getCorreo(), c.getId())) {
+                mostrarAlerta("Duplicado", "Ya existe un cliente con ese correo.");
+                return;
+            }
+            controller.actualizarCliente(c);
+            recargarClientesDesdeBD();
+            txtNombre.clear();
+            txtCorreo.clear();
+            tabla.getSelectionModel().clearSelection();
         });
 
         btnEliminar.setOnAction(e -> {
@@ -70,9 +105,11 @@ public class ClienteView {
             }
             controller.eliminarClientes(List.of(seleccionado));
             recargarClientesDesdeBD();
+            txtNombre.clear();
+            txtCorreo.clear();
         });
 
-        VBox form = new VBox(10, txtNombre, txtCorreo, new HBox(10, btnAgregar, btnEliminar));
+        VBox form = new VBox(10, txtNombre, txtCorreo, new HBox(10, btnAgregar, btnModificar, btnEliminar));
         form.setPadding(new Insets(10));
         form.setAlignment(Pos.CENTER_LEFT);
 

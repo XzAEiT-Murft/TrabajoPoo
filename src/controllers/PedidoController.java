@@ -7,7 +7,6 @@ import models.Cliente;
 import models.Pedido;
 import repositories.PedidoRepository;
 import utils.JPAUtil;
-
 public class PedidoController {
 
     private final PedidoRepository repo = new PedidoRepository();
@@ -25,6 +24,22 @@ public class PedidoController {
         try {
             tx.begin();
             em.persist(pedido); // cascade en Pedido → persiste detalles
+            tx.commit();
+        } catch (Exception e) {
+            if (tx.isActive()) tx.rollback();
+            e.printStackTrace();
+        } finally { em.close(); }
+    }
+
+    public void actualizarPedido(Pedido pedido) {
+        if (pedido.getDetalles() == null || pedido.getDetalles().isEmpty()) {
+            throw new IllegalArgumentException("No se puede actualizar un pedido sin platillos.");
+        }
+        EntityManager em = JPAUtil.getEntityManager();
+        EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+            em.merge(pedido); // orphanRemoval actualiza detalles
             tx.commit();
         } catch (Exception e) {
             if (tx.isActive()) tx.rollback();

@@ -28,6 +28,7 @@ public class PlatilloView {
         txtPrecio.setPromptText("Precio");
 
         Button btnAgregar = new Button("Agregar");
+        Button btnModificar = new Button("Modificar");
         Button btnEliminar = new Button("Eliminar");
 
         TableView<Platillo> tabla = new TableView<>(platillos);
@@ -39,6 +40,13 @@ public class PlatilloView {
         colPrecio.setCellValueFactory(new PropertyValueFactory<>("precio"));
 
         tabla.getColumns().addAll(colNombre, colPrecio);
+
+        tabla.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, sel) -> {
+            if (sel != null) {
+                txtNombre.setText(sel.getNombre());
+                txtPrecio.setText(String.valueOf(sel.getPrecio()));
+            }
+        });
 
         btnAgregar.setOnAction(e -> {
             double precio;
@@ -62,6 +70,38 @@ public class PlatilloView {
             recargarPlatillosDesdeBD();
             txtNombre.clear();
             txtPrecio.clear();
+            tabla.getSelectionModel().clearSelection();
+        });
+
+        btnModificar.setOnAction(e -> {
+            Platillo seleccionado = tabla.getSelectionModel().getSelectedItem();
+            if (seleccionado == null) {
+                mostrarAlerta("Sin selección", "Selecciona un platillo.");
+                return;
+            }
+            double precio;
+            try {
+                precio = Double.parseDouble(txtPrecio.getText());
+            } catch (NumberFormatException ex) {
+                mostrarAlerta("Validación", "Precio inválido.");
+                return;
+            }
+            Platillo p = new Platillo(txtNombre.getText().trim(), precio);
+            p.setId(seleccionado.getId());
+            String error = PlatilloValidator.validar(p);
+            if (!error.isEmpty()) {
+                mostrarAlerta("Validación", error);
+                return;
+            }
+            if (controller.existePorNombre(p.getNombre(), p.getId())) {
+                mostrarAlerta("Duplicado", "Ya existe un platillo con ese nombre.");
+                return;
+            }
+            controller.actualizarPlatillo(p);
+            recargarPlatillosDesdeBD();
+            txtNombre.clear();
+            txtPrecio.clear();
+            tabla.getSelectionModel().clearSelection();
         });
 
         btnEliminar.setOnAction(e -> {
@@ -72,9 +112,11 @@ public class PlatilloView {
             }
             controller.eliminarPlatillos(List.of(seleccionado));
             recargarPlatillosDesdeBD();
+            txtNombre.clear();
+            txtPrecio.clear();
         });
 
-        VBox form = new VBox(10, txtNombre, txtPrecio, new HBox(10, btnAgregar, btnEliminar));
+        VBox form = new VBox(10, txtNombre, txtPrecio, new HBox(10, btnAgregar, btnModificar, btnEliminar));
         form.setPadding(new Insets(10));
         form.setAlignment(Pos.CENTER_LEFT);
 

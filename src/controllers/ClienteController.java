@@ -39,7 +39,7 @@ public class ClienteController {
     public boolean eliminarClientes(List<Cliente> lista) {
         EntityManager em = JPAUtil.getEntityManager();
         EntityTransaction tx = em.getTransaction();
-        try {
+                try {
             tx.begin();
             for (Cliente c : lista) {
                 Cliente ref = em.find(Cliente.class, c.getId());
@@ -64,13 +64,22 @@ public class ClienteController {
     }
 
     public boolean existePorCorreo(String correo) {
+        return existePorCorreo(correo, null);
+    }
+
+    public boolean existePorCorreo(String correo, Long excluirId) {
         EntityManager em = JPAUtil.getEntityManager();
         try {
-            Long count = em.createQuery(
-                "SELECT COUNT(c) FROM Cliente c WHERE LOWER(c.correo) = :correo", Long.class)
-                .setParameter("correo", correo.toLowerCase())
-                .getSingleResult();
-            return count > 0;
+            String jpql = "SELECT COUNT(c) FROM Cliente c WHERE LOWER(c.correo) = :correo";
+            if (excluirId != null) {
+                jpql += " AND c.id <> :id";
+            }
+            TypedQuery<Long> q = em.createQuery(jpql, Long.class)
+                    .setParameter("correo", correo.toLowerCase());
+            if (excluirId != null) {
+                q.setParameter("id", excluirId);
+            }
+            return q.getSingleResult() > 0;
         } finally { em.close(); }
     }
 }

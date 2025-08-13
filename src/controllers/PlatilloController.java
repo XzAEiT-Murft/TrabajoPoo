@@ -39,7 +39,7 @@ public class PlatilloController {
     public boolean eliminarPlatillos(List<Platillo> lista) {
         EntityManager em = JPAUtil.getEntityManager();
         EntityTransaction tx = em.getTransaction();
-        try {
+try {
             tx.begin();
             for (Platillo p : lista) {
                 Platillo ref = em.find(Platillo.class, p.getId());
@@ -64,13 +64,22 @@ public class PlatilloController {
     }
 
     public boolean existePorNombre(String nombre) {
+        return existePorNombre(nombre, null);
+    }
+
+    public boolean existePorNombre(String nombre, Long excluirId) {
         EntityManager em = JPAUtil.getEntityManager();
         try {
-            Long count = em.createQuery(
-                "SELECT COUNT(p) FROM Platillo p WHERE LOWER(p.nombre) = :nom", Long.class)
-                .setParameter("nom", nombre.toLowerCase())
-                .getSingleResult();
-            return count > 0;
+            String jpql = "SELECT COUNT(p) FROM Platillo p WHERE LOWER(p.nombre) = :nom";
+            if (excluirId != null) {
+                jpql += " AND p.id <> :id";
+            }
+            TypedQuery<Long> q = em.createQuery(jpql, Long.class)
+                    .setParameter("nom", nombre.toLowerCase());
+            if (excluirId != null) {
+                q.setParameter("id", excluirId);
+            }
+            return q.getSingleResult() > 0;
         } finally { em.close(); }
     }
 }
