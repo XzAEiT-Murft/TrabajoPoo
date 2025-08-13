@@ -76,9 +76,24 @@ public class ClienteView {
         form.setPadding(new Insets(10));
         form.setAlignment(Pos.CENTER_LEFT);
 
+        Button btnClientes = new Button("Clientes");
+        btnClientes.setDisable(true);
+        btnClientes.setOnAction(e -> ClienteView.mostrar(stage));
+        Button btnPlatillos = new Button("Platillos");
+        btnPlatillos.setOnAction(e -> PlatilloView.mostrar(stage));
+        Button btnPedidos = new Button("Pedidos");
+        btnPedidos.setOnAction(e -> PedidoView.mostrar(stage));
+        Button btnSalir = new Button("Salir");
+        btnSalir.setOnAction(e -> stage.close());
+
+        HBox navBar = new HBox(10, btnClientes, btnPlatillos, btnPedidos, btnSalir);
+        navBar.setAlignment(Pos.CENTER);
+        navBar.setPadding(new Insets(10));
+
         BorderPane root = new BorderPane();
         root.setTop(form);
         root.setCenter(tabla);
+        root.setBottom(navBar);
 
         Scene scene = new Scene(root, 600, 400);
         stage.setTitle("Clientes");

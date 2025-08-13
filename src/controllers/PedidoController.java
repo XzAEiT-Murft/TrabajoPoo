@@ -1,59 +1,52 @@
 package controllers;
 
-import jakarta.persistence.*;
-import models.*;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityTransaction;
+import java.util.List;
+import models.Cliente;
+import models.Pedido;
+import repositories.PedidoRepository;
 import utils.JPAUtil;
 
-import java.util.List;
-
 public class PedidoController {
+
+    private final PedidoRepository repo = new PedidoRepository();
+
+    public List<Pedido> obtenerTodos() {
+        return repo.findAllWithClienteAndDetalles();
+    }
 
     public void crearPedido(Pedido pedido) {
         if (pedido.getDetalles() == null || pedido.getDetalles().isEmpty()) {
             throw new IllegalArgumentException("No se puede crear un pedido sin platillos.");
         }
-        EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
+        EntityManager em = JPAUtil.getEntityManager();
         EntityTransaction tx = em.getTransaction();
         try {
             tx.begin();
-            em.persist(pedido);
+            em.persist(pedido); // cascade en Pedido → persiste detalles
             tx.commit();
         } catch (Exception e) {
             if (tx.isActive()) tx.rollback();
             e.printStackTrace();
-        } finally {
-            em.close();
-        }
+        } finally { em.close(); }
     }
 
     public List<Pedido> obtenerPedidosPorCliente(Cliente cliente) {
-        EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
-        try {
-            TypedQuery<Pedido> q = em.createQuery("SELECT p FROM Pedido p WHERE p.cliente = :cli", Pedido.class);
-            q.setParameter("cli", cliente);
-            return q.getResultList();
-        } finally {
-            em.close();
-        }
-    }
-
-    public Pedido obtenerPedidoConPlatillos(int idPedido) {
-        EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
-        try {
-            return em.find(Pedido.class, idPedido);
-        } finally {
-            em.close();
-        }
+        // si necesitas por cliente con JOIN FETCH, duplica la query del repo y agrega WHERE
+        return obtenerTodos().stream()
+                .filter(p -> p.getCliente() != null && p.getCliente().getId().equals(cliente.getId()))
+                .toList();
     }
 
     public boolean eliminarPedidos(List<Pedido> pedidos) {
-        EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
+        EntityManager em = JPAUtil.getEntityManager();
         EntityTransaction tx = em.getTransaction();
         try {
             tx.begin();
             for (Pedido p : pedidos) {
-                p = em.find(Pedido.class, p.getId());
-                if (p != null) em.remove(p);
+                Pedido ref = em.find(Pedido.class, p.getId());
+                if (ref != null) em.remove(ref); // orphanRemoval elimina detalles
             }
             tx.commit();
             return true;
@@ -61,8 +54,6 @@ public class PedidoController {
             if (tx.isActive()) tx.rollback();
             e.printStackTrace();
             return false;
-        } finally {
-            em.close();
-        }
+        } finally { em.close(); }
     }
 }

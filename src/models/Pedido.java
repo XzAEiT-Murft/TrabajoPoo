@@ -1,51 +1,52 @@
 package models;
 
 import jakarta.persistence.*;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "Pedidos")
+@Table(name = "pedidos")
 public class Pedido {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    @Column(name = "id")
+    private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "ClienteId")
+    // FK a clientes(id)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cliente_id", nullable = false)
     private Cliente cliente;
 
-    private LocalDate fecha;
+    @Column(name = "fecha", nullable = false)
+    private LocalDateTime fecha;
 
+    // Relación con detalles
     @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PedidoDetalle> detalles = new ArrayList<>();
 
-    public Pedido() {}
-
-    public Pedido(Cliente cliente) {
-        this.cliente = cliente;
-        this.fecha = LocalDate.now();
+    @PrePersist
+    public void prePersist() {
+        if (fecha == null) fecha = LocalDateTime.now();
     }
 
-    public void agregarDetalle(PedidoDetalle det) {
-        detalles.add(det);
-        det.setPedido(this);
-    }
-
+    // ----- helpers -----
+    @Transient
     public double getTotal() {
-        return detalles.stream().mapToDouble(PedidoDetalle::getSubtotal).sum();
+        return (detalles == null) ? 0.0 :
+                detalles.stream().mapToDouble(PedidoDetalle::getSubtotal).sum();
     }
 
-    // Getters y setters
-    public int getId() { return id; }
-    public void setId(int id) { this.id = id; }
+    // ----- getters/setters -----
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
     public Cliente getCliente() { return cliente; }
     public void setCliente(Cliente cliente) { this.cliente = cliente; }
 
-    public LocalDate getFecha() { return fecha; }
-    public void setFecha(LocalDate fecha) { this.fecha = fecha; }
+    public LocalDateTime getFecha() { return fecha; }
+    public void setFecha(LocalDateTime fecha) { this.fecha = fecha; }
 
     public List<PedidoDetalle> getDetalles() { return detalles; }
     public void setDetalles(List<PedidoDetalle> detalles) { this.detalles = detalles; }
