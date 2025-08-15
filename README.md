@@ -7,16 +7,16 @@ Proyecto **sin Maven/Gradle**, preparado para **VS Code** con librerías en `lib
 
 ## 🧩 Características
 
-- **CRUD de Clientes** (nombre y correo, valida correo único).
+- **CRUD de Clientes** (nombre y correo; correo único).
 - **CRUD de Platillos** (nombre único, precio > 0).
-- **Gestión de Pedidos**: crear pedido para un cliente con múltiples platillos y cantidades.
+- **Pedidos**: crear pedido para un cliente con múltiples platillos y cantidades.
 - **Consultas**:
   - Pedidos por cliente.
   - Detalles de un pedido (platillos, cantidades, subtotales).
   - **Total** por pedido (cálculo en la entidad).
 - **Eliminaciones**:
   - Borrado de pedidos (con borrado en cascada de detalles por FK).
-- **Manejo de errores**:
+- **Validaciones**:
   - No permite pedidos sin platillos.
   - No permite cantidades ≤ 0.
 - **UI**:
@@ -32,54 +32,47 @@ Proyecto **sin Maven/Gradle**, preparado para **VS Code** con librerías en `lib
 - **Base de datos**: **SQL Server** (2019/2022)
 - **IDE**: **Visual Studio Code** (sin Maven/Gradle)
 
-> *Nota*: EclipseLink puede mostrar el aviso *“Java SE '22' is not fully supported yet”*. Es **informativo**, no bloquea.
+> *Nota*: EclipseLink puede mostrar el aviso *“Java SE '22' is not fully supported yet”*. Es informativo, no bloquea.
 
 ---
 
-## 🗂️ Estructura del proyecto
+## 🗂️ Estructura del proyecto (simplificada)
 
+```
 TrabajoPoo/
-database/
-delicias.sql
-src/
-App.java
-META-INF/
-persistence.xml
-models/
-Cliente.java
-Platillo.java
-Pedido.java
-PedidoDetalle.java
-controllers/
-ClienteController.java
-PlatilloController.java
-PedidoController.java
-repositories/
-PedidoRepository.java
-utils/
-JPAUtil.java
-views/
-ClienteView.java
-PlatilloView.java
-PedidoView.java
-styles/
-main.css
-lib/
-eclipselink-4.0.2.jar
-jakarta.persistence-api-3.1.0.jar
-jakarta.activation-api-2.1.1.jar
-jakarta.xml.bind-api-4.0.0.jar
-mssql-jdbc-12.10.1.jre11.jar
-javafx.base.jar
-javafx.controls.jar
-javafx.fxml.jar
-javafx.graphics.jar
-(y demás .jar de JavaFX)
-.vscode/
-settings.json
-launch.json
-README.md
+  database/
+    delicias.sql
+  src/
+    App.java
+    META-INF/
+      persistence.xml
+    models/
+      Cliente.java
+      Platillo.java
+      Pedido.java
+      PedidoDetalle.java
+    controllers/
+      ClienteController.java
+      PlatilloController.java
+      PedidoController.java
+    repositories/
+      PedidoRepository.java
+    utils/
+      JPAUtil.java
+    views/
+      ClienteView.java
+      PlatilloView.java
+      PedidoView.java
+    styles/
+      main.css
+  lib/               ← carpeta para **dependencias** (.jar de JavaFX, EclipseLink, JDBC, etc.)
+  .vscode/
+    settings.json
+    launch.json
+  README.md
+```
 
+> La carpeta **`lib/`** es exclusivamente para **dependencias** (JARs). Coloca ahí los JAR de JavaFX, EclipseLink, JDBC de SQL Server y demás que uses. No es necesario listar su contenido en el README.
 
 ---
 
@@ -119,7 +112,11 @@ CREATE TABLE pedido_detalle (
     CONSTRAINT FK_detalle_pedido FOREIGN KEY (pedido_id) REFERENCES pedidos(id) ON DELETE CASCADE,
     CONSTRAINT FK_detalle_platillo FOREIGN KEY (platillo_id) REFERENCES platillos(id)
 );
+```
 
+### Datos de ejemplo (seed)
+
+```sql
 USE delicias;
 GO
 INSERT INTO clientes (nombre, correo) VALUES
@@ -164,24 +161,22 @@ INSERT INTO pedido_detalle (pedido_id,platillo_id,cantidad) VALUES (@o4,@p5,2),(
 INSERT INTO pedidos (cliente_id) VALUES (@c5); DECLARE @o5 BIGINT = SCOPE_IDENTITY();
 INSERT INTO pedido_detalle (pedido_id,platillo_id,cantidad) VALUES (@o5,@p1,1),(@o5,@p2,2);
 GO
-
 ```
 
-🧱 Entidades (JPA) — resumen
+---
 
-models.Cliente: id, nombre, correo (único).
+## 🧱 Entidades (JPA) — resumen
 
-models.Platillo: id, nombre (único), precio.
+- `models.Cliente`: `id`, `nombre`, `correo (único)`.
+- `models.Platillo`: `id`, `nombre (único)`, `precio`.
+- `models.Pedido`: `id`, `cliente (ManyToOne)`, `fecha`, `detalles (OneToMany, cascade=ALL, orphanRemoval=true)`.  
+  - `getTotal()` → suma subtotales de detalles.
+- `models.PedidoDetalle`: `id`, `pedido (ManyToOne)`, `platillo (ManyToOne)`, `cantidad`.  
+  - `getSubtotal()` → `platillo.precio * cantidad`.
 
-models.Pedido: id, cliente (ManyToOne), fecha, detalles (OneToMany, cascade=ALL, orphanRemoval=true).
+**Consulta para listar pedidos con nombres ya cargados**:
 
-getTotal() → suma subtotales de detalles.
-
-models.PedidoDetalle: id, pedido (ManyToOne), platillo (ManyToOne), cantidad.
-
-getSubtotal() → platillo.precio * cantidad.
-
-Consulta para listar pedidos con nombres ya cargados:
+```java
 // repositories/PedidoRepository.java
 return em.createQuery(
   "SELECT DISTINCT p FROM Pedido p " +
@@ -190,8 +185,13 @@ return em.createQuery(
   "LEFT JOIN FETCH d.platillo " +
   "ORDER BY p.id DESC", Pedido.class
 ).getResultList();
+```
 
-🔌 Configuración de JPA (META-INF/persistence.xml)
+---
+
+## 🔌 Configuración de JPA (`src/META-INF/persistence.xml`)
+
+```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <persistence xmlns="https://jakarta.ee/xml/ns/persistence" version="3.1">
   <persistence-unit name="DeliciasPU">
@@ -210,4 +210,62 @@ return em.createQuery(
     </properties>
   </persistence-unit>
 </persistence>
+```
 
+---
+
+## 🚀 Ejecución en VS Code (sin Maven)
+
+1. Instala **JDK 17+** y coloca los `.jar` de **JavaFX**, **EclipseLink** y **JDBC** dentro de `lib/`.
+2. Configura VS Code:
+   - `.vscode/settings.json`:
+     ```json
+     {
+       "java.project.referencedLibraries": [
+         "lib/**/*.jar"
+       ]
+     }
+     ```
+   - `.vscode/launch.json`:
+     ```json
+     {
+       "version": "0.2.0",
+       "configurations": [
+         {
+           "type": "java",
+           "name": "Run App JavaFX",
+           "request": "launch",
+           "mainClass": "App",
+           "vmArgs": "--module-path ${workspaceFolder}/lib --add-modules javafx.controls,javafx.fxml"
+         }
+       ]
+     }
+     ```
+3. Crea/actualiza la BD ejecutando `database/delicias.sql`.
+4. Ajusta credenciales en `src/META-INF/persistence.xml`.
+5. En VS Code: **Run → Run App JavaFX**.
+
+---
+
+## ✅ Casos de prueba
+
+1. Crear un **cliente** y **tres platillos**, luego generar un **pedido** con dos de ellos.  
+2. Ver la **lista de pedidos** del cliente.  
+3. Ver el **total** pagado por pedido.  
+4. Intentar crear un **pedido sin platillos** → debe dar error de validación.  
+5. Eliminar un **pedido** y verificar borrado de **detalles** por cascada.
+
+---
+
+## 🧯 Solución de problemas
+
+- *“Java SE '22' is not fully supported yet”* → aviso informativo de EclipseLink.  
+- **18456 Login failed for user 'sa'** → revisa `persistence.xml` y habilita **SQL Authentication** en SQL Server.  
+- **Columnas inexistentes (p.ej., `ACTIVO`)** → usa el script correcto y entidades alineadas (este modelo **no** usa `ACTIVO`).  
+- **No se ven nombres (solo IDs)** → usa el `JOIN FETCH` anterior y `cellValueFactory` que accedan a `cliente.nombre` y `platillo.nombre`.
+
+---
+
+## 📄 Licencia
+
+Uso académico/demostrativo.
